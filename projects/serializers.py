@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Project, Issue
+from .models import Project, Issue, Comment
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -23,3 +23,12 @@ class IssueSerializer(serializers.ModelSerializer):
             'pk', 'title', 'description', 'tag', 'priority',
             'status', 'project', 'author', 'assignee'
         )
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    issue = serializers.CharField(source='issue.title', read_only=True)
+    author = serializers.CharField(source='author.email', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ('pk', 'issue', 'author', 'description')

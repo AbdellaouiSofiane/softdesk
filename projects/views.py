@@ -9,9 +9,9 @@ from rest_framework_extensions.mixins import NestedViewSetMixin
 from rest_framework_extensions.utils import compose_parent_pk_kwarg_name
 
 from user.serializers import SignUpSerializer
-from .models import Issue, Project
+from .models import Issue, Project, Comment
 from .permissions import IsAuthorOrReadOnly
-from .serializers import ProjectSerializer, IssueSerializer
+from .serializers import ProjectSerializer, IssueSerializer, CommentSerializer
 
 
 User = get_user_model()
@@ -72,8 +72,31 @@ class IssueViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
         ).select_related('project', 'author', 'assignee')
 
     def perform_create(self, serializer):
+        # TODO: resrict creation to authorized users
         project_id = self.kwargs.get(
             compose_parent_pk_kwarg_name('project')
         )
         user = self.request.user
         serializer.save(project_id=project_id, author=user, assignee=user)
+
+
+class CommentViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+
+    def get_queryset(self):
+        return self.filter_queryset_by_parents_lookups(
+            Comment.objects.filter(
+                Q(issue__project__author=self.request.user) |
+                Q(issue__project__contributors__in=[self.request.user])
+            ).distinct()
+        ).select_related('issue', 'author')
+
+    def perform_create(self, serializer):
+        # TODO: resrict creation to authorized users
+        issue_id = self.kwargs.get(
+            compose_parent_pk_kwarg_name('issue')
+        )
+        user = self.request.user
+        serializer.save(issue_id=issue_id, author=user)
