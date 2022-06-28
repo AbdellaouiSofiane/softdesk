@@ -2,6 +2,7 @@ from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
+from rest_framework.serializers import ValidationError
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -72,11 +73,18 @@ class IssueViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
         ).select_related('project', 'author', 'assignee')
 
     def perform_create(self, serializer):
-        # TODO: resrict creation to authorized users
         project_id = self.kwargs.get(
             compose_parent_pk_kwarg_name('project')
         )
+        project = Project.objects.get(pk=project_id)
         user = self.request.user
+        if not (
+            user == project.author or
+            user in project.contributors.all()
+        ):
+            raise ValidationError(
+                'You are not permitted to create an issue'
+            )
         serializer.save(project_id=project_id, author=user, assignee=user)
 
 
@@ -94,9 +102,21 @@ class CommentViewSet(NestedViewSetMixin, viewsets.ModelViewSet):
         ).select_related('issue', 'author')
 
     def perform_create(self, serializer):
-        # TODO: resrict creation to authorized users
+        project_id = self.kwargs.get(
+            compose_parent_pk_kwarg_name('issue__project')
+        )
         issue_id = self.kwargs.get(
             compose_parent_pk_kwarg_name('issue')
         )
+
+        project = Project.objects.get(pk=project_id)
         user = self.request.user
+        if not (
+            user == project.author or
+            user in project.contributors.all()
+        ):
+            raise ValidationError(
+                'You are not permitted to create a comment'
+            )
+
         serializer.save(issue_id=issue_id, author=user)
