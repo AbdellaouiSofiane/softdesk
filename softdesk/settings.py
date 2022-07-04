@@ -141,4 +141,5 @@ REST_FRAMEWORK = {
 JWT_AUTH = {
     'JWT_VERIFY_EXPIRATION': False,  # Not suitable for production
     'JWT_AUTH_COOKIE': "jwt_token",
+    'JWT_AUTH_HEADER_PREFIX': "Bearer"
 }
